@@ -5,12 +5,19 @@ import re
 import sqlite3
 import os
 import json
+import urllib2, time
 
 def get_url(url):
     try:
-        response = requests.get(url)
-        if response.status_code==200:
-            return response.text
+        request = urllib2.Request(url)
+        print url
+        response = urllib2.urlopen(request)
+        # response = requests.get(url)
+        print 'response OK'
+        if response.code==200:
+            html = response.read()
+            #return response.text
+            return html
         return None
     except HTTPError, e:
         print "request error"
@@ -190,17 +197,46 @@ def is_img_download(dir, url):
     else:
         return True
 
-def get_more_pages(start, end):
+# def get_more_pages(start, end):
+#     #create_datasheet()
+#     for page in range(start, end):
+#         if page==1:
+#             url = 'http://maoyan.com/news?showTab=4'
+#         else:
+#             url = 'http://maoyan.com/news?showTab=4&offset=%s' % ((page-1)*10)
+#         save_to_sqlite3(url, page)
+
+#get_more_pages(20,22)
+
+# url = 'http://maoyan.com/news?showTab=4'
+# save_to_sqlite3(url, 1)
+
+
+from multiprocessing import Pool
+import os, time
+
+def get_more_pages(page):
+    print 'Run task %s(%s)' % (page, os.getpid())
+    if page==1:
+        url = 'http://maoyan.com/news?showTab=4'
+    else:
+        url = 'http://maoyan.com/news?showTab=4&offset=%s' % ((page-1)*10)
+    save_to_sqlite3(url, page)
+    print url
+
+if __name__ == '__main__':
+    print 'Parent process: %s' % os.getpid()
     create_datasheet()
-    for page in range(start, end):
-        if page==1:
-            url = 'http://maoyan.com/news?showTab=4'
-        else:
-            url = 'http://maoyan.com/news?showTab=4&offset=%s' % ((page-1)*10)
-        save_to_sqlite3(url, page)
-
-get_more_pages(1,10)
-
+    p = Pool()
+    start = time.time()
+    for i in range(40, 80):
+        p.apply_async(get_more_pages, args=(i,))
+        print 'download page %s' % i
+    print 'Waiting for all subprocesses done...'
+    p.close()
+    p.join()
+    end = time.time()
+    print 'All subprocesses done, takes %s seconds' % (end-start)
 
 
 # url = 'http://maoyan.com/news/21084'
